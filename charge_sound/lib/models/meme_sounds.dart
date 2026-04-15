@@ -1,5 +1,10 @@
 import 'sound_item.dart';
 
+/// Path prefix for meme sounds. Using a bare filename means the cache service
+/// can construct the full Supabase URL as needed, while legacy code that checks
+/// `path.startsWith('assets/')` will treat these correctly as remote sounds.
+const _kMemeSoundPathPrefix = 'meme_sounds/';
+
 class MemeSoundCategory {
   final String name;
   final List<SoundItem> sounds;
@@ -55,7 +60,7 @@ SoundItem _meme(String id, String name, int seconds, String category) {
   return SoundItem(
     id: 'meme_$id',
     name: name,
-    path: 'assets/meme_sounds/$id.mp3',
+    path: '$_kMemeSoundPathPrefix$id.mp3',
     duration: Duration(seconds: seconds),
     source: SoundSource.meme,
     category: category,

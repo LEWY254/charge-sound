@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../models/sound_item.dart';
+import '../services/meme_sound_cache_service.dart';
 
 class AudioPlayerViewState {
   final String? currentSoundId;
@@ -88,19 +89,26 @@ class AudioPlayerNotifier extends Notifier<AudioPlayerViewState> {
     return const AudioPlayerViewState();
   }
 
-  AudioSource _sourceFor(SoundItem sound) {
-    final base = sound.path.startsWith('assets/')
-        ? AudioSource.asset(sound.path)
-        : AudioSource.file(sound.path);
+  /// Resolves a [SoundItem] to a local path, downloading meme sounds from
+  /// Supabase Storage on first use and caching them for subsequent plays.
+  Future<AudioSource> _sourceFor(SoundItem sound) async {
+    final AudioSource base;
+    if (sound.source == SoundSource.meme) {
+      final localPath =
+          await ref.read(memeSoundCacheServiceProvider).resolve(sound);
+      base = AudioSource.file(localPath);
+    } else if (sound.path.startsWith('assets/')) {
+      base = AudioSource.asset(sound.path);
+    } else if (sound.path.startsWith('http')) {
+      base = AudioSource.uri(Uri.parse(sound.path));
+    } else {
+      base = AudioSource.file(sound.path);
+    }
 
     final start = sound.trimStart ?? Duration.zero;
     final end = sound.trimEnd;
     if (start > Duration.zero || end != null) {
-      return ClippingAudioSource(
-        child: base,
-        start: start,
-        end: end,
-      );
+      return ClippingAudioSource(child: base, start: start, end: end);
     }
     return base;
   }
@@ -108,7 +116,7 @@ class AudioPlayerNotifier extends Notifier<AudioPlayerViewState> {
   /// Load source without playing (e.g. editor).
   Future<void> loadSound(SoundItem sound) async {
     await _p.stop();
-    await _p.setAudioSource(_sourceFor(sound));
+    await _p.setAudioSource(await _sourceFor(sound));
     state = state.copyWith(
       currentSoundId: sound.id,
       isPlaying: false,
@@ -121,7 +129,7 @@ class AudioPlayerNotifier extends Notifier<AudioPlayerViewState> {
     final same = state.currentSoundId == sound.id;
     if (!same) {
       await _p.stop();
-      await _p.setAudioSource(_sourceFor(sound));
+      await _p.setAudioSource(await _sourceFor(sound));
       state = state.copyWith(
         currentSoundId: sound.id,
         isPlaying: false,
@@ -167,16 +175,10 @@ class AudioPlayerNotifier extends Notifier<AudioPlayerViewState> {
     Duration? clipEnd,
   ) async {
     await _p.stop();
-    final base = sound.path.startsWith('assets/')
-        ? AudioSource.asset(sound.path)
-        : AudioSource.file(sound.path);
-    await _p.setAudioSource(
-      ClippingAudioSource(
-        child: base,
-        start: clipStart,
-        end: clipEnd,
-      ),
+    final base = await _sourceFor(
+      sound.copyWith(trimStart: clipStart, trimEnd: clipEnd, clearTrim: false),
     );
+    await _p.setAudioSource(base);
     state = state.copyWith(
       currentSoundId: sound.id,
       isPlaying: false,

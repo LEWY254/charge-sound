@@ -87,8 +87,8 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  assets:
-    - assets/meme_sounds/
+  # Meme sounds are served from Supabase Storage (meme-sounds bucket)
+  # and cached locally on first use — not bundled in the APK.
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
