@@ -1,0 +1,23 @@
+# Admin panel
+admin-panel/node_modules/
+admin-panel/dist/
+admin-panel/.env.local
+
+# Flutter
+charge_sound/.dart_tool/
+charge_sound/.flutter-plugins-dependencies
+charge_sound/.pub-cache/
+charge_sound/.pub/
+charge_sound/build/
+charge_sound/coverage/
+charge_sound/.idea/
+charge_sound/**/*.iml
+charge_sound/**/*.ipr
+charge_sound/**/*.iws
+charge_sound/android/app/debug
+charge_sound/android/app/profile
+charge_sound/android/app/release
+
+# General
+.DS_Store
+*.log
