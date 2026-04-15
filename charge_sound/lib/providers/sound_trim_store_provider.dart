@@ -37,16 +37,37 @@ class SoundTrimStoreNotifier extends Notifier<Map<String, SoundItem>> {
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_prefsKey);
-    if (raw == null) return;
-    try {
-      final map = jsonDecode(raw) as Map<String, dynamic>;
-      final out = <String, SoundItem>{};
-      for (final e in map.entries) {
-        out[e.key] =
-            SoundItem.fromJson(Map<String, dynamic>.from(e.value as Map));
+    if (raw != null) {
+      try {
+        final map = jsonDecode(raw) as Map<String, dynamic>;
+        final out = <String, SoundItem>{};
+        for (final e in map.entries) {
+          out[e.key] =
+              SoundItem.fromJson(Map<String, dynamic>.from(e.value as Map));
+        }
+        state = {...out, ...state};
+      } catch (_) {}
+    }
+    await _pullRemote();
+  }
+
+  Future<void> _pullRemote() async {
+    final remote = await ref.read(syncServiceProvider).pullTrimOverrides();
+    if (remote.isEmpty) return;
+    // Merge remote trim/fade into local items, preserving all other fields.
+    final merged = Map<String, SoundItem>.from(state);
+    for (final entry in remote.entries) {
+      final existing = merged[entry.key];
+      if (existing != null) {
+        merged[entry.key] = existing.copyWith(
+          trimStart: entry.value.trimStart,
+          trimEnd: entry.value.trimEnd,
+          fadeIn: entry.value.fadeIn,
+          fadeOut: entry.value.fadeOut,
+        );
       }
-      state = {...out, ...state};
-    } catch (_) {}
+    }
+    state = merged;
   }
 
   Future<void> _persist() async {

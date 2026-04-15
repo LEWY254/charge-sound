@@ -1,4 +1,9 @@
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// SharedPreferences key used by the native Android service to construct
+/// meme-sound fallback URLs without the Flutter engine running.
+const kSupabaseUrlPrefKey = 'flutter.supabase_url';
 
 class SupabaseService {
   const SupabaseService._();
@@ -24,6 +29,10 @@ class SupabaseService {
       return;
     }
     await Supabase.initialize(url: url, anonKey: anonKey);
+    if (url.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(kSupabaseUrlPrefKey, url);
+    }
   }
 
   static SupabaseClient? get client {

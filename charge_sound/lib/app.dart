@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme.dart';
 import 'providers/auth_provider.dart';
+import 'providers/audio_player_provider.dart';
 import 'providers/onboarding_provider.dart';
 import 'providers/theme_provider.dart';
 import 'screens/app_shell.dart';
@@ -26,9 +27,38 @@ class SoundTriggerApp extends ConsumerWidget {
           theme: buildLightTheme(lightDynamic),
           darkTheme: buildDarkTheme(darkDynamic),
           themeMode: themeMode,
+          navigatorObservers: [_StopAudioOnNavigationObserver(ref)],
           home: onboardingDone ? const AppShell() : const OnboardingScreen(),
         );
       },
     );
+  }
+}
+
+class _StopAudioOnNavigationObserver extends NavigatorObserver {
+  _StopAudioOnNavigationObserver(this.ref);
+
+  final WidgetRef ref;
+
+  void _stopPreview() {
+    ref.read(audioPlayerProvider.notifier).stop();
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stopPreview();
+    super.didPush(route, previousRoute);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    _stopPreview();
+    super.didPop(route, previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    _stopPreview();
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
   }
 }

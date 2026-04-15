@@ -53,6 +53,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     final tt = Theme.of(context).textTheme;
     final serviceOn = ref.watch(serviceEnabledProvider);
     final batteryThreshold = ref.watch(batteryThresholdProvider);
+    final eventPlaybackMaxMs = ref.watch(eventPlaybackMaxMsProvider);
+    final eventPlaybackSeconds = eventPlaybackMaxMs / 1000.0;
+    final previewCapEnabled = ref.watch(previewDurationCapEnabledProvider);
     final themeMode = ref.watch(themeModeProvider);
     final permissionsAsync = ref.watch(permissionProvider);
     final user = ref.watch(currentUserProvider);
@@ -121,6 +124,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                     style:
                         tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                   ),
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Event Sound Duration',
+                          style:
+                              tt.titleSmall?.copyWith(color: cs.onSurface),
+                        ),
+                      ),
+                      Text(
+                        '${eventPlaybackSeconds.toStringAsFixed(1)}s',
+                        style: tt.labelLarge?.copyWith(color: cs.primary),
+                      ),
+                    ],
+                  ),
+                ),
+                Slider(
+                  value: eventPlaybackSeconds,
+                  min: 0.5,
+                  max: 5.0,
+                  divisions: 18,
+                  label: '${eventPlaybackSeconds.toStringAsFixed(1)}s',
+                  onChanged: (v) => ref
+                      .read(eventPlaybackMaxMsProvider.notifier)
+                      .setMaxDurationMs((v * 1000).round()),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Text(
+                    'Default cap for triggered event playback. '
+                    'Lower values keep sounds short.',
+                    style:
+                        tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                ),
+                SwitchListTile(
+                  title: Text(
+                    'Apply cap to in-app previews',
+                    style: tt.titleSmall?.copyWith(color: cs.onSurface),
+                  ),
+                  subtitle: Text(
+                    'When enabled, manual preview playback uses the same duration cap.',
+                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                  value: previewCapEnabled,
+                  onChanged: (v) => ref
+                      .read(previewDurationCapEnabledProvider.notifier)
+                      .setEnabled(v),
                 ),
               ],
             ),

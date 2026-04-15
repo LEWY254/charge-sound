@@ -3,6 +3,7 @@ package com.soundtrigger.app
 import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
+import android.nfc.NfcAdapter
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -20,9 +21,44 @@ import java.util.Locale
 class MainActivity : FlutterActivity() {
     private val channelName = "com.soundtrigger.app/settings"
     private val shareChannel = "com.soundtrigger.app/share"
+    private val serviceChannel = "com.soundtrigger.app/charge_service"
+
+    private fun isNfcIntent(intent: Intent?): Boolean {
+        val action = intent?.action ?: return false
+        return action == NfcAdapter.ACTION_TAG_DISCOVERED ||
+            action == NfcAdapter.ACTION_NDEF_DISCOVERED ||
+            action == NfcAdapter.ACTION_TECH_DISCOVERED
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (isNfcIntent(intent)) {
+            ChargeSoundService.start(this, playNfcSound = true)
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        // Handle NFC tag that launched the app cold.
+        if (isNfcIntent(intent)) {
+            ChargeSoundService.start(this, playNfcSound = true)
+        }
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            serviceChannel,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start" -> {
+                    ChargeSoundService.start(this)
+                    result.success(null)
+                }
+                "stop" -> {
+                    ChargeSoundService.stop(this)
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             channelName,
@@ -67,8 +103,35 @@ class MainActivity : FlutterActivity() {
                 "getInitialSharedAudio" -> {
                     result.success(extractSharedAudioUri(intent))
                 }
+                "getSharedAudioPath" -> {
+                    result.success(copySharedAudioToCache(intent))
+                }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun copySharedAudioToCache(intent: Intent?): String? {
+        if (intent == null) return null
+        if (intent.action != Intent.ACTION_SEND) return null
+        val type = intent.type ?: return null
+        if (!type.startsWith("audio/")) return null
+        val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: return null
+        return try {
+            val ext = when {
+                type.contains("wav") -> ".wav"
+                type.contains("ogg") -> ".ogg"
+                type.contains("aac") -> ".aac"
+                type.contains("mp4") -> ".m4a"
+                else -> ".mp3"
+            }
+            val dest = java.io.File(cacheDir, "shared_import_${System.currentTimeMillis()}$ext")
+            contentResolver.openInputStream(uri)?.use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
+            dest.absolutePath
+        } catch (e: Exception) {
+            null
         }
     }
 

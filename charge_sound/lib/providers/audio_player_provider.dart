@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../models/sound_item.dart';
+import 'service_provider.dart';
 import '../services/meme_sound_cache_service.dart';
 
 class AudioPlayerViewState {
@@ -92,7 +93,7 @@ class AudioPlayerNotifier extends Notifier<AudioPlayerViewState> {
   /// Resolves a [SoundItem] to a local path, downloading meme sounds from
   /// Supabase Storage on first use and caching them for subsequent plays.
   Future<AudioSource> _sourceFor(SoundItem sound) async {
-    final AudioSource base;
+    final UriAudioSource base;
     if (sound.source == SoundSource.meme) {
       final localPath =
           await ref.read(memeSoundCacheServiceProvider).resolve(sound);
@@ -106,7 +107,15 @@ class AudioPlayerNotifier extends Notifier<AudioPlayerViewState> {
     }
 
     final start = sound.trimStart ?? Duration.zero;
-    final end = sound.trimEnd;
+    Duration? end = sound.trimEnd;
+    final capPreview = ref.read(previewDurationCapEnabledProvider);
+    if (capPreview) {
+      final maxMs = ref.read(eventPlaybackMaxMsProvider);
+      final candidateEnd = start + Duration(milliseconds: maxMs);
+      if (end == null || candidateEnd < end) {
+        end = candidateEnd;
+      }
+    }
     if (start > Duration.zero || end != null) {
       return ClippingAudioSource(child: base, start: start, end: end);
     }

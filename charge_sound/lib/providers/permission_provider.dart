@@ -35,25 +35,38 @@ class PermissionNotifier
   }
 
   Future<void> request(AppPermission permission) async {
+    // Skip if already granted.
+    if (await isGranted(permission)) return;
     switch (permission) {
       case AppPermission.microphone:
         await Permission.microphone.request();
-        break;
       case AppPermission.storage:
         await Permission.storage.request();
-        break;
       case AppPermission.systemSettings:
-        // WRITE_SETTINGS: user must toggle in system UI (plan).
-        await openAppSettings();
-        break;
+        // WRITE_SETTINGS requires the user to toggle it manually in system UI.
+        await openSettingsFor(AppPermission.systemSettings);
+        return; // openSettingsFor already calls checkAll
       case AppPermission.notifications:
         await Permission.notification.request();
-        break;
       case AppPermission.sms:
         await Permission.sms.request();
-        break;
     }
     await checkAll();
+  }
+
+  /// Silently requests every permission that is not yet granted.
+  /// Returns a map of any that are still denied after requesting.
+  Future<Map<AppPermission, PermissionStatus>> requestAllUngranted() async {
+    final statuses = state.value ?? await _loadStatuses();
+    for (final entry in statuses.entries) {
+      if (entry.key == AppPermission.systemSettings) continue;
+      if (entry.value != PermissionStatus.granted) {
+        await request(entry.key);
+      }
+    }
+    final updated = await _loadStatuses();
+    state = AsyncValue.data(updated);
+    return updated;
   }
 
   Future<void> openSettingsFor(AppPermission permission) async {
