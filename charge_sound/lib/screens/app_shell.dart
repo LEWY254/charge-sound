@@ -26,12 +26,35 @@ class AppShell extends ConsumerStatefulWidget {
 
 class _AppShellState extends ConsumerState<AppShell>
     with WidgetsBindingObserver {
-  static const _screens = [
-    HomeScreen(),
-    SoundLibraryScreen(),
-    RecordScreen(),
-    SettingsScreen(),
-  ];
+  List<Widget> _screens() => [
+        const HomeScreen(),
+        const SoundLibraryScreen(),
+        const RecordScreen(),
+        const SettingsScreen(),
+      ];
+
+  List<NavigationDestination> _destinations() => [
+        const NavigationDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        const NavigationDestination(
+          icon: Icon(LucideIcons.music),
+          selectedIcon: Icon(LucideIcons.music),
+          label: 'Sounds',
+        ),
+        const NavigationDestination(
+          icon: Icon(LucideIcons.mic),
+          selectedIcon: Icon(LucideIcons.mic),
+          label: 'Record',
+        ),
+        const NavigationDestination(
+          icon: Icon(LucideIcons.slidersHorizontal),
+          selectedIcon: Icon(LucideIcons.slidersHorizontal),
+          label: 'Settings',
+        ),
+      ];
 
   @override
   void initState() {
@@ -84,14 +107,23 @@ class _AppShellState extends ConsumerState<AppShell>
 
   @override
   Widget build(BuildContext context) {
-    final index = ref.watch(selectedTabProvider);
+    final screens = _screens();
+    final destinations = _destinations();
+    final selected = ref.watch(selectedTabProvider);
+    final index = selected.clamp(0, screens.length - 1);
+    if (index != selected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(selectedTabProvider.notifier).state = index;
+      });
+    }
 
     return Scaffold(
       body: IndexedStack(
         index: index,
-        children: _screens,
+        children: screens,
       ),
       bottomNavigationBar: NavigationBar(
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         selectedIndex: index,
         onDestinationSelected: (i) {
           if (i != index) {
@@ -100,28 +132,7 @@ class _AppShellState extends ConsumerState<AppShell>
           }
           ref.read(selectedTabProvider.notifier).state = i;
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(LucideIcons.zap),
-            selectedIcon: Icon(LucideIcons.zap),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(LucideIcons.music),
-            selectedIcon: Icon(LucideIcons.music),
-            label: 'Sounds',
-          ),
-          NavigationDestination(
-            icon: Icon(LucideIcons.mic),
-            selectedIcon: Icon(LucideIcons.mic),
-            label: 'Record',
-          ),
-          NavigationDestination(
-            icon: Icon(LucideIcons.slidersHorizontal),
-            selectedIcon: Icon(LucideIcons.slidersHorizontal),
-            label: 'Settings',
-          ),
-        ],
+        destinations: destinations,
       ),
     );
   }

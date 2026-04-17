@@ -7,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:path/path.dart' as p;
 
 import '../audio/audio_processor.dart';
+import '../config/feature_flags.dart';
 import '../models/meme_sounds.dart';
 import '../models/sound_item.dart';
 import '../providers/audio_player_provider.dart';
@@ -22,6 +23,7 @@ import '../widgets/assign_to_event_dialog.dart';
 import '../widgets/sound_tile.dart';
 import 'audio_editor_screen.dart';
 import 'import_url_screen.dart';
+import 'marketplace_screen.dart';
 
 Future<void> pickAndAddUserFile(
   BuildContext context,
@@ -113,20 +115,6 @@ class _SoundLibraryScreenState extends ConsumerState<SoundLibraryScreen>
   double _maxDurationSeconds = 30;
   String? _selectedTagFilter;
   String? _selectedFolderFilterId;
-
-  FilterChip _buildHeaderFilterChip({
-    required Widget label,
-    required bool selected,
-    required ValueChanged<bool> onSelected,
-  }) {
-    return FilterChip(
-      label: label,
-      selected: selected,
-      onSelected: onSelected,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-    );
-  }
 
   Future<String?> _promptForLabelName({
     required String title,
@@ -427,17 +415,186 @@ class _SoundLibraryScreenState extends ConsumerState<SoundLibraryScreen>
     }
   }
 
+  Future<void> _openFiltersSheet({
+    required int tagsCount,
+    required int foldersCount,
+    required Map<String, String> folderNameById,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sound Filters',
+                      style: Theme.of(ctx).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Favorites only'),
+                      value: _favoritesOnly,
+                      onChanged: (v) {
+                        setState(() => _favoritesOnly = v);
+                        setSheetState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Source',
+                      style: Theme.of(ctx).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final source in SoundSource.values)
+                          FilterChip(
+                            label: Text(source.name),
+                            selected: _sourceFilter.contains(source),
+                            onSelected: (v) {
+                              setState(() {
+                                if (v) {
+                                  _sourceFilter.add(source);
+                                } else {
+                                  _sourceFilter.remove(source);
+                                }
+                                if (_sourceFilter.isEmpty) {
+                                  _sourceFilter.addAll(SoundSource.values);
+                                }
+                              });
+                              setSheetState(() {});
+                            },
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              final selected = await _pickTagFilter();
+                              if (selected == null) return;
+                              setState(() => _selectedTagFilter = selected);
+                              setSheetState(() {});
+                            },
+                            child: Text(
+                              _selectedTagFilter == null
+                                  ? 'Tag ($tagsCount)'
+                                  : 'Tag: $_selectedTagFilter',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (_selectedTagFilter != null)
+                          IconButton(
+                            tooltip: 'Clear tag filter',
+                            onPressed: () {
+                              setState(() => _selectedTagFilter = null);
+                              setSheetState(() {});
+                            },
+                            icon: const Icon(LucideIcons.x),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              final selected = await _pickFolderFilter();
+                              if (selected == null) return;
+                              setState(() => _selectedFolderFilterId = selected);
+                              setSheetState(() {});
+                            },
+                            child: Text(
+                              _selectedFolderFilterId == null
+                                  ? 'Folder ($foldersCount)'
+                                  : 'Folder: ${folderNameById[_selectedFolderFilterId] ?? 'Unknown'}',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (_selectedFolderFilterId != null)
+                          IconButton(
+                            tooltip: 'Clear folder filter',
+                            onPressed: () {
+                              setState(() => _selectedFolderFilterId = null);
+                              setSheetState(() {});
+                            },
+                            icon: const Icon(LucideIcons.x),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Max duration: ${_maxDurationSeconds.round()}s',
+                      style: Theme.of(ctx).textTheme.titleSmall,
+                    ),
+                    Slider(
+                      value: _maxDurationSeconds,
+                      min: 1,
+                      max: 60,
+                      divisions: 59,
+                      onChanged: (v) {
+                        setState(() => _maxDurationSeconds = v);
+                        setSheetState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _favoritesOnly = false;
+                            _sourceFilter
+                              ..clear()
+                              ..addAll(SoundSource.values);
+                            _selectedTagFilter = null;
+                            _selectedFolderFilterId = null;
+                            _maxDurationSeconds = 30;
+                          });
+                          setSheetState(() {});
+                        },
+                        child: const Text('Reset filters'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _onTabControllerTick() {
     if (_tabController.indexIsChanging) return;
     ref.read(soundLibraryTabProvider.notifier).state = _tabController.index;
+    if (mounted) setState(() {});
   }
 
   @override
   void initState() {
     super.initState();
-    final initial = ref.read(soundLibraryTabProvider).clamp(0, 2);
+    final tabCount = marketplaceEnabled ? 4 : 3;
+    final initial = ref.read(soundLibraryTabProvider).clamp(0, tabCount - 1);
     _tabController = TabController(
-      length: 3,
+      length: tabCount,
       vsync: this,
       initialIndex: initial,
     );
@@ -454,7 +611,7 @@ class _SoundLibraryScreenState extends ConsumerState<SoundLibraryScreen>
   @override
   Widget build(BuildContext context) {
     ref.listen<int>(soundLibraryTabProvider, (prev, next) {
-      final idx = next.clamp(0, 2);
+      final idx = next.clamp(0, _tabController.length - 1);
       if (_tabController.index != idx) {
         _tabController.animateTo(idx);
       }
@@ -467,6 +624,7 @@ class _SoundLibraryScreenState extends ConsumerState<SoundLibraryScreen>
     final folderNameById = {
       for (final folder in folders) folder.id: folder.name,
     };
+    final marketTabIndex = marketplaceEnabled ? _tabController.length - 1 : -1;
 
     return Scaffold(
       body: NestedScrollView(
@@ -478,124 +636,107 @@ class _SoundLibraryScreenState extends ConsumerState<SoundLibraryScreen>
               style: tt.titleLarge?.copyWith(color: cs.onSurface),
             ),
             bottom: PreferredSize(
-              // Keep enough room for search, filters, slider, and tab bar.
-              preferredSize: const Size.fromHeight(220),
+              preferredSize: Size.fromHeight(
+                _tabController.index == marketTabIndex ? 64 : 164,
+              ),
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: SearchBar(
-                      hintText: 'Search sounds...',
-                      leading: Icon(
-                        LucideIcons.search,
-                        size: 20,
-                        color: cs.onSurfaceVariant,
-                      ),
-                      elevation: WidgetStateProperty.all(0),
-                      backgroundColor:
-                          WidgetStateProperty.all(cs.surfaceContainerHighest),
-                      shape: WidgetStateProperty.all(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
+                  if (_tabController.index != marketTabIndex) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: SearchBar(
+                        hintText: 'Search sounds...',
+                        leading: Icon(
+                          LucideIcons.search,
+                          size: 20,
+                          color: cs.onSurfaceVariant,
+                        ),
+                        elevation: WidgetStateProperty.all(0),
+                        backgroundColor:
+                            WidgetStateProperty.all(cs.surfaceContainerHighest),
+                        shape: WidgetStateProperty.all(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                        ),
+                        onChanged: (v) => setState(() => _searchQuery = v),
+                        textStyle: WidgetStateProperty.all(tt.bodyMedium),
+                        constraints: const BoxConstraints(
+                          minHeight: 48,
+                          maxHeight: 48,
                         ),
                       ),
-                      onChanged: (v) => setState(() => _searchQuery = v),
-                      textStyle: WidgetStateProperty.all(tt.bodyMedium),
-                      constraints: const BoxConstraints(
-                        minHeight: 48,
-                        maxHeight: 48,
-                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
-                        spacing: 8,
                         children: [
-                          _buildHeaderFilterChip(
-                            label: const Text('Favorites'),
-                            selected: _favoritesOnly,
-                            onSelected: (v) {
-                              setState(() => _favoritesOnly = v);
-                            },
-                          ),
-                          _buildHeaderFilterChip(
-                            label: Text(
-                              _selectedTagFilter == null
-                                  ? 'Tags (${tags.length})'
-                                  : 'Tag: $_selectedTagFilter',
+                          Expanded(
+                            child: Text(
+                              [
+                                if (_favoritesOnly) 'Favorites',
+                                if (_selectedTagFilter != null) 'Tag',
+                                if (_selectedFolderFilterId != null) 'Folder',
+                                '${_maxDurationSeconds.round()}s',
+                              ].join(' • '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: tt.bodySmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
                             ),
-                            selected: _selectedTagFilter != null,
-                            onSelected: (v) async {
-                              if (!v) {
-                                setState(() => _selectedTagFilter = null);
-                                return;
-                              }
-                              final selected = await _pickTagFilter();
-                              if (!mounted || selected == null) return;
-                              setState(() => _selectedTagFilter = selected);
-                            },
                           ),
-                          _buildHeaderFilterChip(
-                            label: Text(
-                              _selectedFolderFilterId == null
-                                  ? 'Folders (${folders.length})'
-                                  : 'Folder: ${folderNameById[_selectedFolderFilterId] ?? 'Unknown'}',
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: () => _openFiltersSheet(
+                              tagsCount: tags.length,
+                              foldersCount: folders.length,
+                              folderNameById: folderNameById,
                             ),
-                            selected: _selectedFolderFilterId != null,
-                            onSelected: (v) async {
-                              if (!v) {
-                                setState(() => _selectedFolderFilterId = null);
-                                return;
-                              }
-                              final selected = await _pickFolderFilter();
-                              if (!mounted || selected == null) return;
-                              setState(
-                                () => _selectedFolderFilterId = selected,
-                              );
-                            },
+                            icon: const Icon(LucideIcons.slidersHorizontal, size: 16),
+                            label: const Text('Filters'),
                           ),
-                          for (final source in SoundSource.values)
-                            _buildHeaderFilterChip(
-                              label: Text(source.name),
-                              selected: _sourceFilter.contains(source),
-                              onSelected: (v) {
-                                setState(() {
-                                  if (v) {
-                                    _sourceFilter.add(source);
-                                  } else {
-                                    _sourceFilter.remove(source);
-                                  }
-                                  if (_sourceFilter.isEmpty) {
-                                    _sourceFilter.addAll(SoundSource.values);
-                                  }
-                                });
-                              },
-                            ),
                         ],
                       ),
                     ),
-                  ),
-                  Slider(
-                    value: _maxDurationSeconds,
-                    min: 1,
-                    max: 60,
-                    divisions: 59,
-                    label: '${_maxDurationSeconds.round()}s max',
-                    onChanged: (v) {
-                      setState(() => _maxDurationSeconds = v);
-                    },
-                  ),
-                  TabBar(
-                    controller: _tabController,
-                    tabs: const [
-                      Tab(text: 'My Files'),
-                      Tab(text: 'Meme Sounds'),
-                      Tab(text: 'Recordings'),
-                    ],
+                    const SizedBox(height: 8),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.start,
+                        dividerColor: Colors.transparent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 6,
+                        ),
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicator: BoxDecoration(
+                          color: cs.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        labelColor: cs.onPrimaryContainer,
+                        unselectedLabelColor: cs.onSurfaceVariant,
+                        labelStyle: tt.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        unselectedLabelStyle: tt.labelLarge,
+                        tabs: [
+                          const Tab(text: 'Files'),
+                          const Tab(text: 'Sounds'),
+                          const Tab(text: 'Records'),
+                          if (marketplaceEnabled) const Tab(text: 'Market'),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -635,6 +776,7 @@ class _SoundLibraryScreenState extends ConsumerState<SoundLibraryScreen>
               folderNameById: folderNameById,
               onManageLabels: _openLabelManager,
             ),
+            if (marketplaceEnabled) const MarketplaceScreen(embedded: true),
           ],
         ),
       ),
@@ -820,6 +962,7 @@ class _MyFilesTab extends ConsumerWidget {
   List<SoundItem> _filter(List<SoundItem> items) {
     final q = searchQuery.toLowerCase();
     return items.where((s) {
+      final matchesRecordedSource = s.source == SoundSource.recording;
       final matchesQuery =
           q.isEmpty || s.name.toLowerCase().contains(q);
       final matchesSource = sourceFilter.contains(s.source);
@@ -829,7 +972,8 @@ class _MyFilesTab extends ConsumerWidget {
           selectedTagFilter == null || s.tags.contains(selectedTagFilter);
       final matchesFolder =
           selectedFolderFilterId == null || s.folderId == selectedFolderFilterId;
-      return matchesQuery &&
+      return matchesRecordedSource &&
+          matchesQuery &&
           matchesSource &&
           matchesDuration &&
           matchesFav &&

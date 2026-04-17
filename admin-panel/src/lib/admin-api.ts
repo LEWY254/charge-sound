@@ -215,9 +215,18 @@ export async function readSounds(): Promise<CatalogSoundRecord[]> {
     packId: row.pack_id ?? '',
     packName: row.pack_name ?? 'Unknown pack',
     storagePath: row.storage_path,
+    previewPath: row.preview_path ?? null,
+    category: row.category ?? 'general',
+    tags: row.tags ?? [],
     durationLabel: '0:03',
     licenseLabel: row.license_label ?? 'Unknown',
+    licenseUrl: row.license_url ?? '',
+    creatorName: row.creator_name ?? '',
+    sourceAttribution: row.source_attribution ?? '',
     sourceProvider: row.source_provider ?? 'Manual',
+    isMarketplaceVisible: row.is_marketplace_visible ?? true,
+    isFree: row.is_free ?? true,
+    featuredRank: row.featured_rank ?? 0,
     status: row.status ?? 'approved',
   }))
 }
@@ -300,8 +309,16 @@ export async function createSound(input: {
   slug: string
   packId: string
   storagePath: string
+  previewPath?: string
+  category: string
+  tags: string[]
   licenseLabel: string
+  licenseUrl: string
+  creatorName: string
+  sourceAttribution: string
   sourceProvider: string
+  isMarketplaceVisible: boolean
+  featuredRank: number
 }): Promise<AdminCommandResult> {
   if (isDemoMode) {
     return createDemoSound(input)

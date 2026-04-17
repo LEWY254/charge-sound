@@ -73,7 +73,7 @@ flutter_launcher_icons:
   android: true
   image_path: "assets/icon/ic_launcher.png"
   adaptive_icon_foreground: "assets/icon/ic_foreground.png"
-  adaptive_icon_background: "#22C55E"
+  adaptive_icon_background: "#111827"
   adaptive_icon_monochrome: "assets/icon/ic_foreground.png"
 
 # For information on the generic Dart part of this file, see the
@@ -86,7 +86,6 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
-
   # Meme sounds are served from Supabase Storage (meme-sounds bucket)
   # and cached locally on first use — not bundled in the APK.
 

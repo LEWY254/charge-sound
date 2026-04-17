@@ -107,9 +107,18 @@ export interface CatalogSoundRecord {
   packId: string
   packName: string
   storagePath: string
+  previewPath: string | null
+  category: string
+  tags: string[]
   durationLabel: string
   licenseLabel: string
+  licenseUrl: string
+  creatorName: string
+  sourceAttribution: string
   sourceProvider: string
+  isMarketplaceVisible: boolean
+  isFree: boolean
+  featuredRank: number
   status: 'draft' | 'approved'
 }
 

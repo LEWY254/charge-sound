@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/permission_provider.dart';
 import '../providers/service_provider.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/royalty_free_terms_sheet.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -274,7 +275,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                                 .signInWithGoogle();
                             if (response == null) {
                               _showMessage(
-                                'Google sign-in is unavailable. Configure Supabase env vars first.',
+                                'Google sign-in is unavailable right now. Please try again later.',
                               );
                               return;
                             }
@@ -396,6 +397,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                       Icon(LucideIcons.chevronRight, color: cs.onSurfaceVariant),
                   onTap: () => showLicensePage(context: context),
                 ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                ListTile(
+                  title: Text('Royalty-free terms',
+                      style: tt.titleSmall?.copyWith(color: cs.onSurface)),
+                  trailing:
+                      Icon(LucideIcons.chevronRight, color: cs.onSurfaceVariant),
+                  onTap: () => showRoyaltyFreeTermsSheet(context),
+                ),
               ],
             ),
           ),
@@ -460,7 +469,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             .signUpWithEmail(email: email, password: password);
         if (response == null) {
           _showMessage(
-            'Email sign-up is unavailable. Configure Supabase env vars first.',
+            'Email sign-up is unavailable right now. Please try again later.',
           );
           return;
         }
@@ -472,7 +481,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
             .signInWithEmail(email: email, password: password);
         if (response == null) {
           _showMessage(
-            'Email sign-in is unavailable. Configure Supabase env vars first.',
+            'Email sign-in is unavailable right now. Please try again later.',
           );
           return;
         }

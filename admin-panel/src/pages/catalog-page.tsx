@@ -23,9 +23,17 @@ export function CatalogPage() {
   const [packSlug, setPackSlug] = useState('')
   const [soundName, setSoundName] = useState('')
   const [soundStoragePath, setSoundStoragePath] = useState('')
+  const [soundPreviewPath, setSoundPreviewPath] = useState('')
+  const [soundCategory, setSoundCategory] = useState('general')
+  const [soundTags, setSoundTags] = useState('')
   const [soundPackId, setSoundPackId] = useState('')
   const [soundLicense, setSoundLicense] = useState('Pixabay License')
+  const [soundLicenseUrl, setSoundLicenseUrl] = useState('')
+  const [soundCreatorName, setSoundCreatorName] = useState('')
+  const [soundAttribution, setSoundAttribution] = useState('')
   const [soundProvider, setSoundProvider] = useState('Manual')
+  const [soundFeaturedRank, setSoundFeaturedRank] = useState(0)
+  const [soundVisible, setSoundVisible] = useState(true)
 
   const packsQuery = useQuery({
     queryKey: ['packs'],
@@ -58,7 +66,12 @@ export function CatalogPage() {
       if (result.ok) {
         setSoundName('')
         setSoundStoragePath('')
+        setSoundPreviewPath('')
         setSoundPackId('')
+        setSoundTags('')
+        setSoundLicenseUrl('')
+        setSoundCreatorName('')
+        setSoundAttribution('')
         void queryClient.invalidateQueries({ queryKey: ['packs'] })
         void queryClient.invalidateQueries({ queryKey: ['sounds'] })
       }
@@ -178,6 +191,14 @@ export function CatalogPage() {
               />
             </div>
             <div className="space-y-2">
+              <Label>Preview path (optional)</Label>
+              <TextInput
+                value={soundPreviewPath}
+                onChange={(event) => setSoundPreviewPath(event.target.value)}
+                placeholder="anime_hits/previews/sword_slash_8s.mp3"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Pack</Label>
               <SelectInput value={soundPackId} onChange={(event) => setSoundPackId(event.target.value)}>
                 <option value="">Select a pack…</option>
@@ -190,11 +211,47 @@ export function CatalogPage() {
             </div>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
+                <Label>Category</Label>
+                <TextInput
+                  value={soundCategory}
+                  onChange={(event) => setSoundCategory(event.target.value)}
+                  placeholder="anime"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Tags (comma separated)</Label>
+                <TextInput
+                  value={soundTags}
+                  onChange={(event) => setSoundTags(event.target.value)}
+                  placeholder="action,sword,impact"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
                 <Label>License</Label>
                 <TextInput
                   value={soundLicense}
                   onChange={(event) => setSoundLicense(event.target.value)}
                   placeholder="Pixabay License"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>License URL</Label>
+                <TextInput
+                  value={soundLicenseUrl}
+                  onChange={(event) => setSoundLicenseUrl(event.target.value)}
+                  placeholder="https://pixabay.com/service/license-summary/"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Creator name</Label>
+                <TextInput
+                  value={soundCreatorName}
+                  onChange={(event) => setSoundCreatorName(event.target.value)}
+                  placeholder="Creator or artist"
                 />
               </div>
               <div className="space-y-2">
@@ -206,6 +263,33 @@ export function CatalogPage() {
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Source attribution</Label>
+              <TextInput
+                value={soundAttribution}
+                onChange={(event) => setSoundAttribution(event.target.value)}
+                placeholder="Sound by ... under ... license"
+              />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Featured rank</Label>
+                <TextInput
+                  type="number"
+                  value={String(soundFeaturedRank)}
+                  onChange={(event) => setSoundFeaturedRank(Number(event.target.value))}
+                  placeholder="0"
+                />
+              </div>
+              <label className="flex min-h-11 items-center gap-3 rounded-[var(--radius-sm)] border border-white/8 px-3 text-sm text-[var(--color-text)]">
+                <input
+                  type="checkbox"
+                  checked={soundVisible}
+                  onChange={(event) => setSoundVisible(event.target.checked)}
+                />
+                Visible in marketplace
+              </label>
+            </div>
             <Button
               className="w-full"
               onClick={() =>
@@ -214,11 +298,33 @@ export function CatalogPage() {
                   slug: soundName.toLowerCase().replace(/\s+/g, '_'),
                   packId: soundPackId,
                   storagePath: soundStoragePath,
+                  previewPath: soundPreviewPath || undefined,
+                  category: soundCategory.trim().toLowerCase(),
+                  tags: soundTags
+                    .split(',')
+                    .map((tag) => tag.trim().toLowerCase())
+                    .filter(Boolean),
                   licenseLabel: soundLicense,
+                  licenseUrl: soundLicenseUrl,
+                  creatorName: soundCreatorName,
+                  sourceAttribution: soundAttribution,
                   sourceProvider: soundProvider,
+                  isMarketplaceVisible: soundVisible,
+                  featuredRank: Number.isFinite(soundFeaturedRank) ? soundFeaturedRank : 0,
                 })
               }
-              disabled={!soundName || !soundStoragePath || !soundPackId || soundMutation.isPending}
+              disabled={
+                !soundName ||
+                !soundStoragePath ||
+                !soundPackId ||
+                !soundCategory.trim() ||
+                !soundLicense.trim() ||
+                !soundLicenseUrl.trim() ||
+                !soundCreatorName.trim() ||
+                !soundAttribution.trim() ||
+                !soundProvider.trim() ||
+                soundMutation.isPending
+              }
             >
               {soundMutation.isPending ? 'Saving…' : 'Create sound row'}
             </Button>
@@ -290,6 +396,7 @@ export function CatalogPage() {
                       <th className="px-4 py-3 font-medium">Sound</th>
                       <th className="px-4 py-3 font-medium">Pack</th>
                       <th className="px-4 py-3 font-medium">License</th>
+                      <th className="px-4 py-3 font-medium">Visibility</th>
                       <th className="px-4 py-3 font-medium">Storage</th>
                     </tr>
                   </thead>
@@ -311,6 +418,16 @@ export function CatalogPage() {
                         <td className="px-4 py-4">
                           <div className="text-[var(--color-text)]">{sound.licenseLabel}</div>
                           <div className="text-[var(--color-text-muted)]">{sound.sourceProvider}</div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex flex-wrap gap-2">
+                            <Badge tone={sound.isMarketplaceVisible ? 'success' : 'warning'}>
+                              {sound.isMarketplaceVisible ? 'Market visible' : 'Hidden'}
+                            </Badge>
+                            <Badge tone={sound.isFree ? 'success' : 'warning'}>
+                              {sound.isFree ? 'Free' : 'Paid'}
+                            </Badge>
+                          </div>
                         </td>
                         <td className="px-4 py-4 font-mono text-xs text-[var(--color-text-muted)]">
                           {sound.storagePath}

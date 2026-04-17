@@ -231,9 +231,18 @@ let sounds: CatalogSoundRecord[] = [
     packId: 'pack_01',
     packName: 'Anime Hits',
     storagePath: 'anime_hits/sword_slash.mp3',
+    previewPath: null,
+    category: 'anime',
+    tags: ['action', 'slice'],
     durationLabel: '0:03',
     licenseLabel: 'CC BY 4.0',
+    licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+    creatorName: 'Pixabay Creator',
+    sourceAttribution: 'Audio by Pixabay Creator (CC BY 4.0).',
     sourceProvider: 'Pixabay',
+    isMarketplaceVisible: true,
+    isFree: true,
+    featuredRank: 10,
     status: 'approved',
   },
   {
@@ -243,9 +252,18 @@ let sounds: CatalogSoundRecord[] = [
     packId: 'pack_02',
     packName: 'Retro Alerts',
     storagePath: 'retro_alerts/retro_coin.mp3',
+    previewPath: null,
+    category: 'retro',
+    tags: ['arcade', 'coin'],
     durationLabel: '0:02',
     licenseLabel: 'Pixabay License',
+    licenseUrl: 'https://pixabay.com/service/license-summary/',
+    creatorName: 'Pixabay Artist',
+    sourceAttribution: 'Sound by Pixabay Artist under Pixabay License.',
     sourceProvider: 'Pixabay',
+    isMarketplaceVisible: true,
+    isFree: true,
+    featuredRank: 8,
     status: 'approved',
   },
   {
@@ -255,9 +273,18 @@ let sounds: CatalogSoundRecord[] = [
     packId: 'pack_03',
     packName: 'Cinematic Drops',
     storagePath: 'cinematic_drops/deep_bass_drop.mp3',
+    previewPath: null,
+    category: 'cinematic',
+    tags: ['impact', 'bass'],
     durationLabel: '0:04',
     licenseLabel: 'CC0',
+    licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    creatorName: 'Freesound User',
+    sourceAttribution: 'Published under CC0.',
     sourceProvider: 'Freesound',
+    isMarketplaceVisible: false,
+    isFree: true,
+    featuredRank: 1,
     status: 'draft',
   },
 ]
@@ -405,8 +432,16 @@ export function createSound(input: {
   slug: string
   packId: string
   storagePath: string
+  previewPath?: string
+  category: string
+  tags: string[]
   licenseLabel: string
+  licenseUrl: string
+  creatorName: string
+  sourceAttribution: string
   sourceProvider: string
+  isMarketplaceVisible: boolean
+  featuredRank: number
 }): AdminCommandResult {
   const pack = packs.find((item) => item.id === input.packId)
   if (!pack) {
@@ -421,9 +456,18 @@ export function createSound(input: {
       packId: pack.id,
       packName: pack.name,
       storagePath: input.storagePath,
+      previewPath: input.previewPath ?? null,
+      category: input.category,
+      tags: input.tags,
       durationLabel: '0:03',
       licenseLabel: input.licenseLabel,
+      licenseUrl: input.licenseUrl,
+      creatorName: input.creatorName,
+      sourceAttribution: input.sourceAttribution,
       sourceProvider: input.sourceProvider,
+      isMarketplaceVisible: input.isMarketplaceVisible,
+      isFree: true,
+      featuredRank: input.featuredRank,
       status: 'draft',
     },
     ...sounds,
@@ -437,6 +481,23 @@ export function createSound(input: {
 }
 
 export function setPackActive(packId: string, isActive: boolean): AdminCommandResult {
+  if (isActive) {
+    const packSounds = sounds.filter((item) => item.packId === packId)
+    const invalid = packSounds.find((item) =>
+      item.status !== 'approved' ||
+      !item.isMarketplaceVisible ||
+      !item.licenseLabel.trim() ||
+      !item.licenseUrl.trim() ||
+      !item.creatorName.trim() ||
+      !item.sourceAttribution.trim(),
+    )
+    if (invalid) {
+      return {
+        ok: false,
+        message: `Cannot publish pack. "${invalid.name}" is missing required marketplace metadata or approval.`,
+      }
+    }
+  }
   packs = packs.map((item) => (item.id === packId ? { ...item, isActive } : item))
   return { ok: true, message: isActive ? 'Pack published.' : 'Pack moved back to staged.' }
 }

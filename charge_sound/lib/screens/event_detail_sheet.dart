@@ -468,7 +468,7 @@ class _EmptyTab extends ConsumerWidget {
                       pickAndAddUserFile(context, ref);
                     case _SourceTab.recorded:
                       Navigator.of(context).pop();
-                      ref.read(selectedTabProvider.notifier).state = 2;
+                      ref.read(selectedTabProvider.notifier).state = 3;
                     case _SourceTab.memeSounds:
                       onSwitchTab(_SourceTab.myFiles);
                   }

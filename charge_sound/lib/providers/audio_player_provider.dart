@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../models/sound_item.dart';
+import '../services/marketplace_analytics_service.dart';
 import 'service_provider.dart';
 import '../services/meme_sound_cache_service.dart';
 
@@ -146,6 +147,12 @@ class AudioPlayerNotifier extends Notifier<AudioPlayerViewState> {
       );
     }
     await _p.play();
+    if (sound.id.startsWith('market_')) {
+      MarketplaceAnalyticsService.track(
+        'first_play_success',
+        payload: {'sound_id': sound.id},
+      );
+    }
   }
 
   Future<void> pause() => _p.pause();

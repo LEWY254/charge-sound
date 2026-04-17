@@ -218,12 +218,22 @@ drop policy if exists "admin_staff_read_audit_logs" on public.audit_logs;
 create policy "admin_staff_read_audit_logs" on public.audit_logs for select using (private.is_admin_staff());
 
 alter table if exists public.preset_packs
-  add column if not exists visibility text not null default 'public';
+  add column if not exists visibility text not null default 'public',
+  add column if not exists is_marketplace_visible boolean not null default true;
 
 alter table if exists public.preset_sounds
   add column if not exists status text not null default 'approved',
   add column if not exists license_label text,
-  add column if not exists source_provider text;
+  add column if not exists source_provider text,
+  add column if not exists is_marketplace_visible boolean not null default true,
+  add column if not exists is_free boolean not null default true,
+  add column if not exists preview_path text,
+  add column if not exists license_url text,
+  add column if not exists creator_name text,
+  add column if not exists source_attribution text,
+  add column if not exists category text,
+  add column if not exists tags text[] not null default '{}'::text[],
+  add column if not exists featured_rank integer not null default 0;
 
 create or replace view public.admin_preset_packs
 with (security_invoker = true)
@@ -249,9 +259,18 @@ select
   s.pack_id,
   p.name as pack_name,
   s.storage_path,
+  s.preview_path,
+  coalesce(s.category, 'general') as category,
+  coalesce(s.tags, '{}'::text[]) as tags,
   coalesce(s.status, 'approved') as status,
   coalesce(s.license_label, 'Unknown') as license_label,
-  coalesce(s.source_provider, 'Manual') as source_provider
+  coalesce(s.license_url, '') as license_url,
+  coalesce(s.creator_name, '') as creator_name,
+  coalesce(s.source_attribution, '') as source_attribution,
+  coalesce(s.source_provider, 'Manual') as source_provider,
+  coalesce(s.is_marketplace_visible, true) as is_marketplace_visible,
+  coalesce(s.is_free, true) as is_free,
+  coalesce(s.featured_rank, 0) as featured_rank
 from public.preset_sounds s
 left join public.preset_packs p on p.id = s.pack_id;
 

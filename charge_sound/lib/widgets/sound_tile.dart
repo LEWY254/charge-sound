@@ -50,6 +50,9 @@ class SoundTile extends StatelessWidget {
         playDuration != null &&
         playDuration!.inMilliseconds > 0;
 
+    final metaText = _metaText();
+    final visibleTags = _visibleTags(sound.tags);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -93,9 +96,9 @@ class SoundTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (sound.category != null || sound.createdAt != null)
+                      if (metaText != null)
                         Text(
-                          sound.category ?? _formatDate(sound.createdAt!),
+                          metaText,
                           style:
                               tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                         ),
@@ -145,7 +148,7 @@ class SoundTile extends StatelessWidget {
             ),
           ),
         ),
-        if (sound.tags.isNotEmpty || sound.folderId != null)
+        if (visibleTags.isNotEmpty || sound.folderId != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(64, 0, 16, 6),
             child: Wrap(
@@ -158,7 +161,7 @@ class SoundTile extends StatelessWidget {
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     label: Text(folderName ?? 'Folder'),
                   ),
-                for (final tag in sound.tags.take(3))
+                for (final tag in visibleTags.take(2))
                   Chip(
                     visualDensity: VisualDensity.compact,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -197,6 +200,32 @@ class SoundTile extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  String? _metaText() {
+    final category = sound.category?.trim().toLowerCase();
+    if (category != null &&
+        category.isNotEmpty &&
+        category != 'meme' &&
+        category != 'general') {
+      return category;
+    }
+    if (sound.source == SoundSource.recording && sound.createdAt != null) {
+      return _formatDate(sound.createdAt!);
+    }
+    if (sound.source == SoundSource.preset || sound.source == SoundSource.meme) {
+      return 'market';
+    }
+    return sound.sourceLabel.toLowerCase();
+  }
+
+  List<String> _visibleTags(List<String> tags) {
+    return tags
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .where((t) => !RegExp(r'^\d+$').hasMatch(t))
+        .where((t) => !RegExp(r'^[a-f0-9]{8,}$', caseSensitive: false).hasMatch(t))
+        .toList();
   }
 }
 

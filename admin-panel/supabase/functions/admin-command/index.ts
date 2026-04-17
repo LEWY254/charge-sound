@@ -96,6 +96,16 @@ function asString(payload: CommandPayload, key: string) {
   return value.trim()
 }
 
+function asOptionalString(payload: CommandPayload, key: string) {
+  const value = payload[key]
+  if (value == null) return null
+  if (typeof value !== 'string') {
+    throw new Error(`Expected "${key}" to be a string when provided.`)
+  }
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
 function asBoolean(payload: CommandPayload, key: string) {
   const value = payload[key]
   if (typeof value !== 'boolean') {
@@ -103,6 +113,25 @@ function asBoolean(payload: CommandPayload, key: string) {
   }
 
   return value
+}
+
+function asNumber(payload: CommandPayload, key: string) {
+  const value = payload[key]
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    throw new Error(`Expected "${key}" to be a number.`)
+  }
+  return value
+}
+
+function asStringArray(payload: CommandPayload, key: string) {
+  const value = payload[key]
+  if (!Array.isArray(value)) {
+    throw new Error(`Expected "${key}" to be an array of strings.`)
+  }
+  const out = value
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter((item) => item.length > 0)
+  return out
 }
 
 async function writeAuditLog(actorUserId: string, action: string, entityType: string, entityId: string, payload: CommandPayload) {
@@ -142,8 +171,16 @@ async function handleCreateSound(actorUserId: string, payload: CommandPayload) {
   const slug = asString(payload, 'slug')
   const packId = asString(payload, 'packId')
   const storagePath = asString(payload, 'storagePath')
+  const previewPath = asOptionalString(payload, 'previewPath')
+  const category = asString(payload, 'category')
+  const tags = asStringArray(payload, 'tags')
   const licenseLabel = asString(payload, 'licenseLabel')
+  const licenseUrl = asString(payload, 'licenseUrl')
+  const creatorName = asString(payload, 'creatorName')
+  const sourceAttribution = asString(payload, 'sourceAttribution')
   const sourceProvider = asString(payload, 'sourceProvider')
+  const isMarketplaceVisible = asBoolean(payload, 'isMarketplaceVisible')
+  const featuredRank = Math.floor(asNumber(payload, 'featuredRank'))
 
   const { data, error } = await adminClient
     .from('preset_sounds')
@@ -154,7 +191,16 @@ async function handleCreateSound(actorUserId: string, payload: CommandPayload) {
       storage_path: storagePath,
       storage_bucket: 'preset-packs',
       status: 'draft',
+      is_marketplace_visible: isMarketplaceVisible,
+      is_free: true,
+      preview_path: previewPath,
       license_label: licenseLabel,
+      license_url: licenseUrl,
+      creator_name: creatorName,
+      source_attribution: sourceAttribution,
+      category,
+      tags,
+      featured_rank: featuredRank,
       source_provider: sourceProvider,
     })
     .select('id')
@@ -170,6 +216,35 @@ async function handleCreateSound(actorUserId: string, payload: CommandPayload) {
 async function handleSetPackActive(actorUserId: string, payload: CommandPayload) {
   const packId = asString(payload, 'packId')
   const isActive = asBoolean(payload, 'isActive')
+
+  if (isActive) {
+    const { data: packSounds, error: packSoundsError } = await adminClient
+      .from('preset_sounds')
+      .select('id,name,status,is_marketplace_visible,is_free,license_label,license_url,creator_name,source_attribution')
+      .eq('pack_id', packId)
+      .order('created_at', { ascending: true })
+
+    if (packSoundsError) throw packSoundsError
+    if (!packSounds || packSounds.length === 0) {
+      throw new Error('Cannot publish an empty pack. Add approved sounds first.')
+    }
+    const invalidSound = packSounds.find((sound) => {
+      return (
+        sound.status !== 'approved' ||
+        sound.is_marketplace_visible !== true ||
+        sound.is_free !== true ||
+        !sound.license_label?.trim() ||
+        !sound.license_url?.trim() ||
+        !sound.creator_name?.trim() ||
+        !sound.source_attribution?.trim()
+      )
+    })
+    if (invalidSound) {
+      throw new Error(
+        `Cannot publish pack. Sound "${invalidSound.name}" is missing required metadata or approval.`,
+      )
+    }
+  }
 
   const { error } = await adminClient
     .from('preset_packs')
